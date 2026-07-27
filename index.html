@@ -46,7 +46,9 @@
   }
 
   header{
-    background: radial-gradient(120% 160% at 15% 0%, var(--nuit-2) 0%, var(--nuit) 55%, #0A2A33 100%);
+    background:
+      radial-gradient(120% 160% at 15% 0%, rgba(22,75,89,0.68) 0%, rgba(15,59,71,0.82) 55%, rgba(10,42,51,0.92) 100%),
+      url('header-bg.jpg') center/cover no-repeat;
     color: var(--papier);
     padding: 44px 24px 32px;
     position: relative; overflow: hidden;
@@ -269,9 +271,15 @@
     <h2 id="modalTitle">Ajouter une sortie</h2>
     <input type="hidden" id="f-id">
 
-    <div class="field">
-      <label>Date</label>
-      <input type="date" id="f-date" min="2026-01-01" max="2026-12-31" value="2026-08-01">
+    <div class="field" style="display:flex; gap:10px;">
+      <div style="flex:1;">
+        <label>Date</label>
+        <input type="date" id="f-date" min="2026-01-01" max="2026-12-31" value="2026-08-01">
+      </div>
+      <div style="flex:0 0 120px;">
+        <label>Heure <span style="font-weight:400; color:#7a8a86;">(facultatif)</span></label>
+        <input type="time" id="f-time">
+      </div>
     </div>
 
     <div class="field">
@@ -541,6 +549,12 @@
     return (jsDay + 6) % 7;
   }
   function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+  function formatTime(t){
+    if(!t) return '';
+    const [h,m] = t.split(':');
+    const hNum = parseInt(h,10);
+    return m==='00' ? `${hNum}h` : `${hNum}h${m}`;
+  }
   function escapeHtml(str){
     const div = document.createElement('div');
     div.textContent = str;
@@ -615,7 +629,7 @@
       root.innerHTML = `<div class="empty-state">Aucune sortie en ${MONTH_NAMES[viewMonth-1]} pour le moment. Touchez un jour du calendrier ou « Ajouter une sortie » pour en planifier une.</div>`;
       return;
     }
-    const sorted = [...monthOutings].sort((a,b)=> a.date.localeCompare(b.date));
+    const sorted = [...monthOutings].sort((a,b)=> (a.date+(a.time||'00:00')).localeCompare(b.date+(b.time||'00:00')));
     const groups = [];
     let currentGroup = null;
     sorted.forEach(o=>{
@@ -649,7 +663,7 @@
     const inner = `
       <div class="card-icon" style="background:${hexToRgba(meta.color,0.18)}">${meta.icon}</div>
       <div class="card-body">
-        <div class="card-date">${dateLabel(o.date)}${badge}</div>
+        <div class="card-date">${dateLabel(o.date)}${o.time ? ' · ' + formatTime(o.time) : ''}${badge}</div>
         <div class="card-title">${escapeHtml(o.title)}</div>
         ${o.note ? `<div class="card-note">${escapeHtml(o.note)}</div>` : ''}
       </div>
@@ -743,6 +757,7 @@
       document.getElementById('modalTitle').textContent = 'Modifier la sortie';
       document.getElementById('f-id').value = o.id;
       document.getElementById('f-date').value = o.date;
+      document.getElementById('f-time').value = o.time || '';
       document.getElementById('f-title').value = o.title;
       document.getElementById('f-mapsurl').value = o.mapsUrl || '';
       document.getElementById('f-note').value = o.note || '';
@@ -753,6 +768,7 @@
       document.getElementById('modalTitle').textContent = 'Ajouter une sortie';
       document.getElementById('f-id').value = '';
       document.getElementById('f-date').value = presetDate || monthDateStr(YEAR, viewMonth, 1);
+      document.getElementById('f-time').value = '';
       document.getElementById('f-title').value = '';
       document.getElementById('f-mapsurl').value = '';
       document.getElementById('f-note').value = '';
@@ -769,6 +785,7 @@
 
   function saveOuting(){
     const date = document.getElementById('f-date').value;
+    const time = document.getElementById('f-time').value;
     const title = document.getElementById('f-title').value.trim();
     const type = document.querySelector('input[name=ftype]:checked').value;
     const mapsUrl = document.getElementById('f-mapsurl').value.trim();
@@ -779,7 +796,7 @@
     if(!outingsRef){ alert('Firebase n\'est pas configuré — voir les commentaires en haut du fichier.'); return; }
 
     const idVal = document.getElementById('f-id').value;
-    const data = { date, title, type, mapsUrl, note, fullDay };
+    const data = { date, time, title, type, mapsUrl, note, fullDay };
 
     if(idVal){
       outingsRef.child(idVal).update(data).catch(e=>{ console.error(e); setSyncStatus('error'); });
