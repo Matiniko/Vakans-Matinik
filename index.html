@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vakans-Matinik</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Firebase (Realtime Database + Auth) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+
+<style>
+  :root{
+    --nuit: #0F3B47;
+    --nuit-2: #164B59;
+    --hibiscus: #E85D4C;
+    --soleil: #F0B93C;
+    --palmier: #2E7D5B;
+    --sable: #FBF3E4;
+    --sable-2: #F3E6CC;
+    --encre: #16302F;
+    --papier: #FFFDF8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--sable);
+    color: var(--encre);
+    font-family: 'Work Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 60px;
+  }
+  a{color:inherit; text-decoration:none;}
+  button{ font-family:inherit; cursor:pointer; }
+
+  .madras{
+    height: 10px; width: 100%;
+    background: repeating-linear-gradient(90deg,
+      var(--hibiscus) 0px, var(--hibiscus) 6px, transparent 6px, transparent 14px,
+      var(--soleil) 14px, var(--soleil) 18px, transparent 18px, transparent 26px,
+      var(--palmier) 26px, var(--palmier) 30px, transparent 30px, transparent 44px);
+    opacity: 0.9;
+  }
+
+  header{
+    background: radial-gradient(120% 160% at 15% 0%, var(--nuit-2) 0%, var(--nuit) 55%, #0A2A33 100%);
+    color: var(--papier);
+    padding: 44px 24px 32px;
+    position: relative; overflow: hidden;
+  }
+  header::after{
+    content:""; position:absolute; right:-60px; top:-60px;
+    width:220px; height:220px; border-radius:50%;
+    background: radial-gradient(circle, rgba(240,185,60,0.35) 0%, transparent 70%);
+  }
+  .eyebrow{
+    font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--soleil); font-weight: 600; margin: 0 0 10px;
+    display:flex; align-items:center; gap: 8px;
+  }
+  h1{
+    font-family:'Fraunces', serif; font-weight: 600;
+    font-size: clamp(30px, 7.5vw, 48px); line-height: 1.05;
+    margin: 0 0 12px; max-width: 520px;
+  }
+  h1 em{ font-style: italic; color: var(--hibiscus); }
+  .sub{ font-size: 15.5px; line-height: 1.55; color: rgba(255,253,248,0.82); max-width: 460px; margin:0; }
+  .header-tags{ display:flex; gap:8px; flex-wrap:wrap; margin-top: 20px; }
+  .header-tags span{
+    font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 100px;
+    background: rgba(255,253,248,0.1); border: 1px solid rgba(255,253,248,0.22);
+  }
+
+  .sync-dot{ width:7px; height:7px; border-radius:50%; background:#6bd08a; display:inline-block; }
+  .sync-dot.syncing{ background: var(--soleil); animation: pulse 1s infinite ease-in-out; }
+  .sync-dot.error{ background: var(--hibiscus); }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  .toolbar{
+    max-width: 640px; margin: 0 auto; padding: 18px 20px 4px;
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+  }
+  .btn{
+    border:none; border-radius: 100px; padding: 11px 18px;
+    font-size: 13.5px; font-weight: 600; display:inline-flex; align-items:center; gap:7px;
+  }
+  .btn-primary{ background: var(--hibiscus); color: var(--papier); }
+  .btn-primary:hover{ background:#d5493a; }
+  .btn-ghost{ background: var(--papier); color: var(--nuit); border: 1px solid rgba(15,59,71,0.18); }
+  .btn-ghost:hover{ background: var(--sable-2); }
+  .sync-label{ font-size: 12px; color:#6b7a76; font-weight:600; margin-left: auto; display:flex; align-items:center; gap:6px; }
+
+  .cal-wrap{ max-width: 640px; margin: 18px auto 0; padding: 0 20px; }
+  .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin: 6px 0 12px; }
+  .cal-title{ font-family:'Fraunces', serif; font-weight:600; font-size: 19px; color: var(--nuit); text-align:center; flex:1; }
+  .cal-nav-btn{
+    background: var(--papier); border: 1px solid rgba(15,59,71,0.15); border-radius: 10px;
+    width: 34px; height: 34px; font-size: 17px; color: var(--nuit); font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .cal-nav-btn:hover{ background: var(--sable-2); }
+  .cal-grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal-dow{
+    text-align:center; font-size: 10.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing: 0.04em; color:#6b7a76; padding-bottom: 4px;
+  }
+  .cal-cell{
+    aspect-ratio: 1/1; border-radius: 10px; background: var(--papier);
+    border: 1px solid rgba(15,59,71,0.08);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap: 3px; font-size: 12.5px; font-weight: 600; color: var(--encre);
+    position: relative;
+  }
+  .cal-cell.empty{ background: transparent; border-color: transparent; }
+  .cal-cell.has-outing{ cursor:pointer; border-color: rgba(15,59,71,0.18); }
+  .cal-cell.has-outing:hover{ box-shadow: 0 4px 12px rgba(22,48,47,0.12); transform: translateY(-1px); }
+  .cal-cell.no-outing{ cursor:pointer; color:#9aa9a5; }
+  .cal-cell.no-outing:hover{ background: var(--sable-2); }
+  .cal-dots{ display:flex; gap:2px; }
+  .cal-dot{ width:5px; height:5px; border-radius:50%; }
+  .dot-plage{ background:#3aa0a0; }
+  .dot-foret{ background: var(--palmier); }
+  .dot-resto{ background: var(--hibiscus); }
+  .dot-maison{ background: var(--soleil); }
+
+  .week{ padding: 0 20px; }
+  .week-head{ display:flex; align-items: baseline; justify-content: space-between; padding: 26px 4px 12px; }
+  .week-title{ font-family:'Fraunces', serif; font-weight: 600; font-size: 20px; color: var(--nuit); }
+  .week-range{ font-size: 12px; font-weight: 600; color: var(--palmier); letter-spacing: 0.03em; }
+  .cards{ display:flex; flex-direction: column; gap: 12px; max-width: 640px; margin: 0 auto; }
+
+  .card{
+    display:flex; align-items: center; gap: 14px;
+    background: var(--papier); border: 1px solid rgba(15,59,71,0.1); border-radius: 16px;
+    padding: 14px 16px; box-shadow: 0 1px 2px rgba(22,48,47,0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    scroll-margin-top: 20px;
+  }
+  .card.highlight{ border-color: var(--hibiscus); box-shadow: 0 0 0 3px rgba(232,93,76,0.18); }
+  .card-link:hover{ transform: translateY(-2px); box-shadow: 0 8px 20px rgba(22,48,47,0.12); }
+  .card-icon{
+    flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px;
+    display:flex; align-items:center; justify-content:center; font-size: 20px;
+  }
+  .icon-plage{ background: #DDF1F1; }
+  .icon-foret{ background: #DEEEDF; }
+  .icon-resto{ background: #FBE3D3; }
+  .icon-maison{ background: #FCEBC7; }
+  .card-body{ flex: 1 1 auto; min-width: 0; }
+  .card-date{ font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--hibiscus); margin-bottom: 2px; }
+  .card-title{ font-family:'Fraunces', serif; font-weight: 600; font-size: 16.5px; color: var(--encre); line-height: 1.25; margin-bottom: 3px; }
+  .card-note{ font-size: 13px; color: #5b6d6a; line-height: 1.4; }
+  .card-actions{ flex: 0 0 auto; display:flex; gap: 4px; }
+  .icon-btn{
+    background: transparent; border: none; width: 32px; height: 32px; border-radius: 8px;
+    display:flex; align-items:center; justify-content:center; font-size: 15px; color: var(--nuit); opacity: 0.55;
+  }
+  .icon-btn:hover{ opacity: 1; background: var(--sable-2); }
+  .card.home{ background: var(--sable-2); }
+  .full-day-badge{
+    display:inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    background: var(--nuit); color: var(--papier); padding: 2px 7px; border-radius: 6px; margin-left: 6px; vertical-align: middle;
+  }
+  .empty-state{ text-align:center; padding: 30px 20px; color:#6b7a76; font-size: 14px; max-width:640px; margin: 0 auto; }
+
+  .overlay{
+    position: fixed; inset: 0; background: rgba(15,30,29,0.5); display:none;
+    align-items: flex-end; justify-content: center; z-index: 50; padding: 0;
+  }
+  .overlay.open{ display:flex; }
+  .modal{
+    background: var(--papier); width: 100%; max-width: 520px;
+    border-radius: 20px 20px 0 0; padding: 22px 22px 28px; max-height: 88vh; overflow-y:auto;
+  }
+  @media (min-width: 620px){
+    .overlay{ align-items: center; }
+    .modal{ border-radius: 20px; }
+  }
+  .modal h2{ font-family:'Fraunces', serif; font-size: 21px; margin: 0 0 16px; color: var(--nuit); }
+  .field{ margin-bottom: 14px; }
+  .field label{ display:block; font-size: 12.5px; font-weight: 700; color: var(--nuit); margin-bottom: 5px; }
+  .field .hint{ font-size: 11.5px; color:#7a8a86; font-weight: 400; margin-top: 4px; }
+  .field input[type=text], .field input[type=date], .field input[type=url], .field textarea, .field select{
+    width: 100%; border: 1px solid rgba(15,59,71,0.2); border-radius: 10px; padding: 10px 12px;
+    font-size: 14px; font-family: inherit; background: var(--sable); color: var(--encre);
+  }
+  .field textarea{ resize: vertical; min-height: 54px; }
+  .type-choices{ display:flex; gap:8px; flex-wrap:wrap; }
+  .type-choice{
+    flex: 1 1 auto; text-align:center; border: 1px solid rgba(15,59,71,0.2); border-radius: 10px;
+    padding: 9px 6px; font-size: 12.5px; font-weight: 600; background: var(--sable);
+  }
+  .type-choice input{ display:none; }
+  .type-choice.checked{ border-color: var(--hibiscus); background: #FBE3D3; }
+  .checkbox-row{ display:flex; align-items:center; gap:8px; font-size: 13.5px; font-weight: 600; }
+  .modal-actions{ display:flex; gap:10px; margin-top: 18px; }
+  .modal-actions .btn{ flex: 1; justify-content:center; }
+  .btn-danger{ background: transparent; color: var(--hibiscus); border: 1px solid rgba(232,93,76,0.4); }
+  .btn-danger:hover{ background: #FDEDE9; }
+
+  footer{
+    max-width: 640px; margin: 34px auto 0; padding: 0 24px;
+    font-size: 12px; color: #6b7a76; text-align: center; line-height: 1.6;
+  }
+  .banner{
+    max-width: 640px; margin: 14px auto 0; padding: 10px 16px;
+    background: #FDEDE9; border: 1px solid rgba(232,93,76,0.35); border-radius: 12px;
+    font-size: 12.5px; color: #a83c2e; display:none;
+  }
+  .banner.show{ display:block; }
+
+  body.locked > *:not(#loginOverlay){ display:none; }
+  #loginOverlay .modal h2{ font-family:'Fraunces', serif; }
+</style>
+</head>
+<body>
+
+<div class="overlay" id="loginOverlay" style="background: radial-gradient(120% 160% at 15% 0%, #164B59 0%, #0F3B47 55%, #0A2A33 100%);">
+  <div class="modal" style="max-width:380px; text-align:center; padding-top:32px;">
+    <div style="font-size:34px; margin-bottom:6px;">🌺</div>
+    <h2 style="margin-bottom:6px;">Planning en famille</h2>
+    <p style="font-size:13.5px; color:#5b6d6a; margin:0 0 20px;">Entrez le mot de passe partagé pour accéder aux sorties.</p>
+    <div class="field" style="text-align:left;">
+      <input type="password" id="login-password" placeholder="Mot de passe" style="width:100%; border:1px solid rgba(15,59,71,0.2); border-radius:10px; padding:11px 12px; font-size:14px; background:var(--sable);">
+    </div>
+    <p id="login-error" style="display:none; color:var(--hibiscus); font-size:12.5px; margin:-6px 0 12px;">Mot de passe incorrect. Réessayez.</p>
+    <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:4px;" onclick="attemptLogin()">Se connecter</button>
+  </div>
+</div>
+
+<header>
+  <p class="eyebrow"><span class="sync-dot" id="syncDot"></span> Planning partagé en temps réel</p>
+  <h1>Vakans-<em>Matinik</em></h1>
+  <p class="sub">Naviguez mois par mois pour planifier des sorties toute l'année 2026 — tout le monde voit les mêmes sorties, ajoutez ou modifiez, ça se synchronise automatiquement chez les autres.</p>
+  <div class="header-tags" id="headerTags"></div>
+</header>
+
+<div class="madras"></div>
+
+<div class="banner" id="storageBanner">Configuration Firebase manquante ou invalide — voir les commentaires en bas du fichier.</div>
+
+<div class="toolbar">
+  <button class="btn btn-primary" onclick="openModal()">＋ Ajouter une sortie</button>
+  <span class="sync-label" id="syncLabel">Connexion…</span>
+</div>
+
+<div class="cal-wrap">
+  <div class="cal-nav">
+    <button class="cal-nav-btn" onclick="prevMonth()" aria-label="Mois précédent">‹</button>
+    <div class="cal-title" id="calTitle">Août 2026</div>
+    <button class="cal-nav-btn" onclick="nextMonth()" aria-label="Mois suivant">›</button>
+  </div>
+  <div class="cal-grid" id="calDow"></div>
+  <div class="cal-grid" id="calGrid" style="margin-top:6px;"></div>
+</div>
+
+<div id="listRoot"></div>
+
+<footer>
+  Ce planning est partagé : toute personne qui ouvre ce lien voit les mêmes sorties et peut les modifier, en temps réel.
+</footer>
+
+<!-- ---------- Modal: add / edit outing ---------- -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Ajouter une sortie</h2>
+    <input type="hidden" id="f-id">
+
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="f-date" min="2026-01-01" max="2026-12-31" value="2026-08-01">
+    </div>
+
+    <div class="field">
+      <label>Type de sortie</label>
+      <div class="type-choices" id="typeChoices"></div>
+      <button type="button" class="btn btn-ghost" style="margin-top:9px; font-size:12.5px; padding:8px 14px;" onclick="toggleNewTypeForm()">＋ Nouveau type de sortie</button>
+      <div id="newTypeForm" style="display:none; margin-top:10px; padding:14px; background:var(--sable-2); border-radius:12px;">
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+          <div style="flex:0 0 70px;">
+            <label style="display:block; font-size:11.5px; font-weight:700; color:var(--nuit); margin-bottom:5px;">Emoji</label>
+            <input type="text" id="nt-icon" maxlength="4" placeholder="🎣" style="width:100%; text-align:center; border:1px solid rgba(15,59,71,0.2); border-radius:10px; padding:9px; font-size:16px; background:var(--papier);">
+          </div>
+          <div style="flex:1;">
+            <label style="display:block; font-size:11.5px; font-weight:700; color:var(--nuit); margin-bottom:5px;">Nom du type</label>
+            <input type="text" id="nt-label" placeholder="Ex. Pêche, Shopping, Visite..." style="width:100%; border:1px solid rgba(15,59,71,0.2); border-radius:10px; padding:9px 10px; font-size:13.5px; background:var(--papier);">
+          </div>
+          <div style="flex:0 0 50px;">
+            <label style="display:block; font-size:11.5px; font-weight:700; color:var(--nuit); margin-bottom:5px;">Couleur</label>
+            <input type="color" id="nt-color" value="#7B5EA7" style="width:100%; height:38px; padding:2px; border:1px solid rgba(15,59,71,0.2); border-radius:10px;">
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-ghost" style="flex:1; justify-content:center; padding:9px;" onclick="toggleNewTypeForm()">Annuler</button>
+          <button type="button" class="btn btn-primary" style="flex:1; justify-content:center; padding:9px;" onclick="createNewType()">Créer ce type</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Titre</label>
+      <input type="text" id="f-title" placeholder="Ex. Plage de l'Anse Mitan">
+    </div>
+
+    <div class="field">
+      <label>Lieu (lien Google Maps) — facultatif</label>
+      <input type="url" id="f-mapsurl" placeholder="https://maps.google.com/?cid=...">
+      <div class="hint">Dans Google Maps : ouvrez le lieu → « Partager » → « Copier le lien », puis collez-le ici. Fonctionne aussi pour géolocaliser la maison des grillades.</div>
+    </div>
+
+    <div class="field">
+      <label>Note</label>
+      <textarea id="f-note" placeholder="Conseils, horaires, à prévoir..."></textarea>
+    </div>
+
+    <div class="field">
+      <label class="checkbox-row"><input type="checkbox" id="f-fullday"> Journée complète</label>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+      <button class="btn btn-danger" id="deleteBtn" style="display:none;" onclick="deleteOuting()">Supprimer</button>
+      <button class="btn btn-primary" onclick="saveOuting()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* =========================================================================
+     CONFIGURATION FIREBASE — À COMPLÉTER
+     =========================================================================
+     1. Allez sur https://console.firebase.google.com et créez un projet
+        (gratuit).
+     2. Dans le projet : Build > Realtime Database > Create Database
+        (choisissez une région proche, mode "test" pour démarrer).
+     3. Dans l'onglet "Rules" de la Realtime Database, collez :
+          {
+            "rules": { ".read": true, ".write": true }
+          }
+        puis "Publish". (Accès ouvert à qui a le lien — pas de mot de passe.)
+     4. Project settings (roue crantée) > General > "Your apps" > icône Web
+        </> > donnez un nom > copiez l'objet firebaseConfig fourni.
+     5. Collez-le ci-dessous à la place de l'objet d'exemple.
+     ========================================================================= */
+  const firebaseConfig = {
+    apiKey: "COLLEZ_VOTRE_API_KEY_ICI",
+    authDomain: "votre-projet.firebaseapp.com",
+    databaseURL: "https://votre-projet-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "votre-projet",
+    storageBucket: "votre-projet.appspot.com",
+    messagingSenderId: "000000000000",
+    appId: "1:000000000000:web:xxxxxxxxxxxxxxxxxxxxxx"
+  };
+
+  /* =========================================================================
+     PROTECTION PAR MOT DE PASSE — FACULTATIF
+     =========================================================================
+     Pour activer un vrai mot de passe (vérifié par Firebase, pas juste
+     "caché" dans le code) :
+     1. Authentication > Sign-in method > activez "E-mail/Mot de passe".
+     2. Authentication > Users > Add user > créez UN SEUL compte pour toute
+        la famille (l'e-mail n'a pas besoin d'être réel, ex.
+        famille.martinique@planning.local) avec le mot de passe de votre choix.
+     3. Copiez cet e-mail ci-dessous dans FAMILY_EMAIL.
+     4. Dans Realtime Database > Rules, remplacez par :
+          { "rules": { ".read": "auth != null", ".write": "auth != null" } }
+        (au lieu de ".read": true / ".write": true — sinon le mot de passe
+        n'est qu'une façade, les données resteraient ouvertes à qui a le lien
+        de la base directement.)
+     Pour ne PAS avoir de mot de passe, laissez REQUIRE_LOGIN à false.
+     ========================================================================= */
+  const REQUIRE_LOGIN = false;
+  const FAMILY_EMAIL = "famille.martinique@planning.local";
+  /* ========================================================================= */
+  /* ========================================================================= */
+</script>
+
+<!-- ---------- Seed data: written to Firebase only the very first time the database is empty ---------- -->
+<script id="seed-data" type="application/json">
+[
+  {"id":"1","date":"2026-08-01","type":"plage","title":"Plage des Salines","note":"Sable blanc, cocotiers. Arriver avant 10h pour le parking.","mapsUrl":"https://maps.google.com/?cid=15610648097875412665","fullDay":false},
+  {"id":"2","date":"2026-08-02","type":"maison","title":"Grillades maison","note":"Soirée en famille — dominos et belote au programme.","mapsUrl":"","fullDay":false},
+  {"id":"3","date":"2026-08-04","type":"foret","title":"Gorges de la Falaise","note":"Randonnée aquatique guidée le matin, pique-nique et détente sur place l'après-midi.","mapsUrl":"https://maps.google.com/?cid=8301474616052779013","fullDay":true},
+  {"id":"4","date":"2026-08-06","type":"resto","title":"Excellence Bokit","note":"Fort-de-France — le meilleur bokit de l'île.","mapsUrl":"https://maps.google.com/?cid=15543275676379355909","fullDay":false},
+  {"id":"5","date":"2026-08-08","type":"plage","title":"Anse Figuier","note":"Eau turquoise, snorkeling facile, musée à proximité.","mapsUrl":"https://maps.google.com/?cid=6293269859972681325","fullDay":false},
+  {"id":"6","date":"2026-08-09","type":"resto","title":"Le Manza","note":"Restaurant bord de mer à Sainte-Luce.","mapsUrl":"https://maps.google.com/?cid=3521557217108568034","fullDay":false},
+  {"id":"7","date":"2026-08-11","type":"foret","title":"Cascade Couleuvre + Anse Couleuvre","note":"Rando en forêt tropicale le matin, puis baignade et déjeuner sur la plage voisine.","mapsUrl":"https://maps.google.com/?cid=13675521448041290998","fullDay":true},
+  {"id":"8","date":"2026-08-14","type":"maison","title":"Grillades maison","note":"Clôture de semaine tranquille en famille.","mapsUrl":"","fullDay":false},
+  {"id":"9","date":"2026-08-16","type":"plage","title":"Sainte-Luce + Forêt de Montravail","note":"Baignade puis petite marche ombragée dans la forêt voisine.","mapsUrl":"https://maps.google.com/?cid=16215231490907579235","fullDay":false},
+  {"id":"10","date":"2026-08-17","type":"plage","title":"Plage de Cap Macré","note":"Plage sauvage, peu fréquentée.","mapsUrl":"https://maps.google.com/?cid=11403604134867510119","fullDay":false},
+  {"id":"11","date":"2026-08-19","type":"resto","title":"Restaurant Les Arômes","note":"Le Carbet — cuisine créole raffinée.","mapsUrl":"https://maps.google.com/?cid=5260278312348704940","fullDay":false},
+  {"id":"12","date":"2026-08-21","type":"foret","title":"Saut Gendarme","note":"Cascade facile d'accès, idéale en famille.","mapsUrl":"https://maps.google.com/?cid=6865669449940930253","fullDay":false},
+  {"id":"13","date":"2026-08-22","type":"foret","title":"Canyoning — Le Morne-Vert","note":"4–5h d'aventure en forêt : rando, cascades, tyrolienne, ti-punch offert à la fin.","mapsUrl":"https://maps.google.com/?cid=3631734446274235210","fullDay":true},
+  {"id":"14","date":"2026-08-23","type":"plage","title":"Anse Dufour","note":"Excellent snorkeling, tortues fréquentes tôt le matin.","mapsUrl":"https://maps.google.com/?cid=5648674256443556953","fullDay":false},
+  {"id":"15","date":"2026-08-29","type":"plage","title":"Plage de Sinaï","note":"Grand-Rivière — sable volcanique noir, ambiance jungle.","mapsUrl":"https://maps.google.com/?cid=18213997257350337972","fullDay":false},
+  {"id":"16","date":"2026-08-30","type":"resto","title":"Restaurant Le Point de Vue","note":"Sainte-Marie — déjeuner avec vue sur l'Atlantique.","mapsUrl":"https://maps.google.com/?cid=14025216161929350945","fullDay":false},
+  {"id":"17","date":"2026-08-30","type":"maison","title":"Grillades maison","note":"Dernière soirée conviviale avant la fin des vacances.","mapsUrl":"","fullDay":false}
+]
+</script>
+
+<script>
+  const DEFAULT_TYPES = {
+    plage:  { icon:'🌊', label:'Plage',             color:'#3AA0A0' },
+    foret:  { icon:'🌿', label:'Forêt / rivière',   color:'#2E7D5B' },
+    resto:  { icon:'🍽', label:'Restaurant',         color:'#E85D4C' },
+    maison: { icon:'🔥', label:'Grillades maison',   color:'#F0B93C' }
+  };
+  let TYPE_META = { ...DEFAULT_TYPES };
+  const YEAR = 2026;
+  const MONTH_NAMES = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  let viewMonth = 8; // Août par défaut — le mois des vacances
+
+  let outings = [];
+  let db = null;
+  let outingsRef = null;
+  let typesRef = null;
+
+  function hexToRgba(hex, alpha){
+    hex = (hex || '#999999').replace('#','');
+    if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+    const r = parseInt(hex.substring(0,2),16);
+    const g = parseInt(hex.substring(2,4),16);
+    const b = parseInt(hex.substring(4,6),16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function setSyncStatus(state){
+    const dot = document.getElementById('syncDot');
+    const label = document.getElementById('syncLabel');
+    dot.classList.remove('syncing','error');
+    if(state==='syncing'){ dot.classList.add('syncing'); label.textContent = 'Synchronisation…'; }
+    else if(state==='error'){ dot.classList.add('error'); label.textContent = 'Hors ligne'; }
+    else { label.textContent = 'Connecté en temps réel'; }
+  }
+
+  /* ---------- Firebase wiring ---------- */
+  function boot(){
+    if(!firebaseConfig || firebaseConfig.apiKey === 'COLLEZ_VOTRE_API_KEY_ICI'){
+      document.getElementById('storageBanner').classList.add('show');
+      setSyncStatus('error');
+      outings = JSON.parse(document.getElementById('seed-data').textContent);
+      renderTypeChoices();
+      renderAll();
+      return;
+    }
+
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+
+    if(REQUIRE_LOGIN){
+      firebase.auth().onAuthStateChanged(user=>{
+        if(user){
+          document.body.classList.remove('locked');
+          document.getElementById('loginOverlay').classList.remove('open');
+          startDataListeners();
+        } else {
+          document.body.classList.add('locked');
+          document.getElementById('loginOverlay').classList.add('open');
+        }
+      });
+    } else {
+      startDataListeners();
+    }
+  }
+
+  function attemptLogin(){
+    const pwd = document.getElementById('login-password').value;
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+    if(!pwd){ return; }
+    firebase.auth().signInWithEmailAndPassword(FAMILY_EMAIL, pwd)
+      .catch(()=>{ errEl.style.display = 'block'; });
+  }
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const pwdField = document.getElementById('login-password');
+    if(pwdField) pwdField.addEventListener('keydown', e=>{ if(e.key==='Enter') attemptLogin(); });
+  });
+
+  function startDataListeners(){
+    outingsRef = db.ref('outings');
+    typesRef = db.ref('types');
+
+    // Connection indicator (Firebase's built-in presence path)
+    db.ref('.info/connected').on('value', snap=>{
+      setSyncStatus(snap.val() === true ? 'ok' : 'error');
+    });
+
+    // Live listener for outing types (defaults + any custom ones added by the family)
+    typesRef.on('value', snapshot=>{
+      const val = snapshot.val();
+      if(val === null){
+        typesRef.set(DEFAULT_TYPES).catch(e=>console.error('Type seed failed', e));
+        return;
+      }
+      TYPE_META = { ...DEFAULT_TYPES, ...val };
+      renderTypeChoices();
+      renderAll();
+    }, err=>console.error('Firebase types read error', err));
+
+    // Live listener — fires immediately and on every change from anyone
+    outingsRef.on('value', snapshot=>{
+      const val = snapshot.val();
+      if(val === null){
+        seedDatabase();
+        return;
+      }
+      const modalOpen = document.getElementById('overlay').classList.contains('open');
+      outings = Object.keys(val).map(key=>({ ...val[key], id: key }));
+      if(!modalOpen) renderAll();
+    }, err=>{
+      console.error('Firebase read error', err);
+      setSyncStatus('error');
+    });
+  }
+
+  function seedDatabase(){
+    const seed = JSON.parse(document.getElementById('seed-data').textContent);
+    const updates = {};
+    seed.forEach(o=>{ const { id, ...rest } = o; updates[id] = rest; });
+    outingsRef.set(updates).catch(e=>console.error('Seed failed', e));
+  }
+
+  /* ---------- Helpers ---------- */
+  function dateLabel(dateStr){
+    const d = new Date(dateStr + 'T12:00:00');
+    const weekday = d.toLocaleDateString('fr-FR', { weekday:'long' });
+    const month = d.toLocaleDateString('fr-FR', { month:'long' });
+    const day = d.getDate();
+    const dayStr = day === 1 ? '1er' : String(day);
+    return `${weekday.charAt(0).toUpperCase()+weekday.slice(1)} ${dayStr} ${month}`;
+  }
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function daysInMonth(year, month){ return new Date(year, month, 0).getDate(); } // month is 1-based
+  function monthDateStr(year, month, day){ return `${year}-${pad(month)}-${pad(day)}`; }
+  function firstWeekdayMondayIndex(year, month){
+    const d = new Date(year, month-1, 1);
+    const jsDay = d.getDay();
+    return (jsDay + 6) % 7;
+  }
+  function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  /* ---------- Calendar ---------- */
+  function renderCalendarDow(){
+    const dow = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+    document.getElementById('calDow').innerHTML = dow.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  }
+
+  function renderCalendar(){
+    document.getElementById('calTitle').textContent = `${capitalize(MONTH_NAMES[viewMonth-1])} ${YEAR}`;
+    const grid = document.getElementById('calGrid');
+    const nbDays = daysInMonth(YEAR, viewMonth);
+    const leading = firstWeekdayMondayIndex(YEAR, viewMonth);
+    const totalCells = leading + nbDays;
+    const trailing = (7 - (totalCells % 7)) % 7;
+    let html = '';
+    for(let i=0;i<leading;i++) html += `<div class="cal-cell empty"></div>`;
+    for(let day=1; day<=nbDays; day++){
+      const dateStr = monthDateStr(YEAR, viewMonth, day);
+      const dayOutings = outings.filter(o=>o.date===dateStr);
+      const hasOutings = dayOutings.length>0;
+      const types = [...new Set(dayOutings.map(o=>o.type))];
+      const dots = types.map(t=>{
+        const meta = TYPE_META[t] || { color:'#999999' };
+        return `<span class="cal-dot" style="background:${meta.color}"></span>`;
+      }).join('');
+      html += `<div class="cal-cell ${hasOutings?'has-outing':'no-outing'}" onclick="onDayClick('${dateStr}')">
+                 <span>${day}</span><div class="cal-dots">${dots}</div>
+               </div>`;
+    }
+    for(let i=0;i<trailing;i++) html += `<div class="cal-cell empty"></div>`;
+    grid.innerHTML = html;
+  }
+
+  function prevMonth(){
+    viewMonth = viewMonth===1 ? 12 : viewMonth-1;
+    renderAll();
+  }
+  function nextMonth(){
+    viewMonth = viewMonth===12 ? 1 : viewMonth+1;
+    renderAll();
+  }
+
+  function onDayClick(dateStr){
+    const dayOutings = outings.filter(o=>o.date===dateStr);
+    if(dayOutings.length===0){ openModal(null, dateStr); return; }
+    const el = document.getElementById('outing-'+dayOutings[0].id);
+    if(el){
+      el.scrollIntoView({behavior:'smooth', block:'center'});
+      el.classList.add('highlight');
+      setTimeout(()=>el.classList.remove('highlight'), 1600);
+    }
+  }
+
+  /* ---------- List ---------- */
+  function weekRangeLabel(weekStartDay){
+    const nbDays = daysInMonth(YEAR, viewMonth);
+    const start = Math.max(weekStartDay, 1);
+    const end = Math.min(weekStartDay+6, nbDays);
+    return `${start} — ${end} ${MONTH_NAMES[viewMonth-1]}`;
+  }
+
+  function renderList(){
+    const root = document.getElementById('listRoot');
+    const monthPrefix = `${YEAR}-${pad(viewMonth)}-`;
+    const monthOutings = outings.filter(o=>o.date && o.date.startsWith(monthPrefix));
+    if(monthOutings.length===0){
+      root.innerHTML = `<div class="empty-state">Aucune sortie en ${MONTH_NAMES[viewMonth-1]} pour le moment. Touchez un jour du calendrier ou « Ajouter une sortie » pour en planifier une.</div>`;
+      return;
+    }
+    const sorted = [...monthOutings].sort((a,b)=> a.date.localeCompare(b.date));
+    const groups = [];
+    let currentGroup = null;
+    sorted.forEach(o=>{
+      const day = parseInt(o.date.split('-')[2],10);
+      const weekStart = day - ((day-1)%7);
+      if(!currentGroup || currentGroup.weekStart!==weekStart){
+        currentGroup = { weekStart, items:[] };
+        groups.push(currentGroup);
+      }
+      currentGroup.items.push(o);
+    });
+
+    let html = '<div class="madras"></div>';
+    groups.forEach((g, idx)=>{
+      html += `<div class="week">
+        <div class="week-head">
+          <span class="week-title">Semaine du ${g.weekStart}</span>
+          <span class="week-range">${weekRangeLabel(g.weekStart)}</span>
+        </div>
+        <div class="cards">`;
+      g.items.forEach(o=>{ html += cardHtml(o); });
+      html += `</div></div>`;
+      if(idx < groups.length-1) html += '<div class="madras"></div>';
+    });
+    root.innerHTML = html;
+  }
+
+  function cardHtml(o){
+    const meta = TYPE_META[o.type] || { icon:'📍', label:'Autre', color:'#999999' };
+    const badge = o.fullDay ? '<span class="full-day-badge">Journée</span>' : '';
+    const inner = `
+      <div class="card-icon" style="background:${hexToRgba(meta.color,0.18)}">${meta.icon}</div>
+      <div class="card-body">
+        <div class="card-date">${dateLabel(o.date)}${badge}</div>
+        <div class="card-title">${escapeHtml(o.title)}</div>
+        ${o.note ? `<div class="card-note">${escapeHtml(o.note)}</div>` : ''}
+      </div>
+      <div class="card-actions">
+        <button class="icon-btn" title="Modifier" onclick="event.stopPropagation(); openModal('${o.id}')">✎</button>
+        ${o.mapsUrl ? `<button class="icon-btn" title="Ouvrir dans Maps" onclick="event.stopPropagation(); window.open('${o.mapsUrl}','_blank')">↗</button>` : ''}
+      </div>`;
+    if(o.mapsUrl){
+      return `<div class="card card-link" id="outing-${o.id}" style="cursor:pointer" onclick="window.open('${o.mapsUrl}','_blank')">${inner}</div>`;
+    }
+    return `<div class="card ${o.type==='maison'?'home':''}" id="outing-${o.id}">${inner}</div>`;
+  }
+
+  function renderHeaderTags(){
+    const counts = {};
+    outings.forEach(o=>{ counts[o.type] = (counts[o.type]||0) + 1; });
+    const el = document.getElementById('headerTags');
+    el.innerHTML = Object.keys(TYPE_META)
+      .filter(t=>counts[t] > 0)
+      .map(t=>{
+        const m = TYPE_META[t];
+        return `<span>${m.icon} ${counts[t]} ${m.label.toLowerCase()}</span>`;
+      }).join('');
+  }
+
+  function renderAll(){
+    renderCalendarDow();
+    renderCalendar();
+    renderList();
+    renderHeaderTags();
+  }
+
+  /* ---------- Modal ---------- */
+  function renderTypeChoices(){
+    const container = document.getElementById('typeChoices');
+    const currentlyChecked = document.querySelector('input[name=ftype]:checked');
+    const keepSelected = currentlyChecked ? currentlyChecked.value : null;
+    container.innerHTML = Object.keys(TYPE_META).map(key=>{
+      const m = TYPE_META[key];
+      return `<label class="type-choice" data-type="${key}"><input type="radio" name="ftype" value="${key}">${m.icon} ${escapeHtml(m.label)}</label>`;
+    }).join('');
+    setTypeChoice(keepSelected && TYPE_META[keepSelected] ? keepSelected : Object.keys(TYPE_META)[0]);
+  }
+
+  function toggleNewTypeForm(){
+    const el = document.getElementById('newTypeForm');
+    el.style.display = el.style.display==='none' ? 'block' : 'none';
+  }
+
+  function slugify(str){
+    const base = str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-+|-+$)/g,'');
+    return base || ('type-' + Date.now());
+  }
+
+  function createNewType(){
+    const icon = document.getElementById('nt-icon').value.trim() || '📍';
+    const label = document.getElementById('nt-label').value.trim();
+    const color = document.getElementById('nt-color').value || '#7B5EA7';
+    if(!label){ alert('Merci de donner un nom au type de sortie.'); return; }
+    let key = slugify(label);
+    if(TYPE_META[key]) key = key + '-' + Math.floor(Math.random()*1000);
+
+    TYPE_META[key] = { icon, label, color };
+    if(typesRef){
+      typesRef.child(key).set({ icon, label, color }).catch(e=>console.error('Type save failed', e));
+    }
+    renderTypeChoices();
+    setTypeChoice(key);
+    document.getElementById('newTypeForm').style.display = 'none';
+    document.getElementById('nt-icon').value = '';
+    document.getElementById('nt-label').value = '';
+  }
+  function setTypeChoice(type){
+    document.querySelectorAll('.type-choice').forEach(el=>{
+      el.classList.toggle('checked', el.dataset.type===type);
+      el.querySelector('input').checked = (el.dataset.type===type);
+    });
+  }
+  document.getElementById('typeChoices').addEventListener('click', e=>{
+    const label = e.target.closest('.type-choice');
+    if(label) setTypeChoice(label.dataset.type);
+  });
+
+  function openModal(id=null, presetDate=null){
+    const overlay = document.getElementById('overlay');
+    const deleteBtn = document.getElementById('deleteBtn');
+    document.getElementById('newTypeForm').style.display = 'none';
+    renderTypeChoices();
+    if(id){
+      const o = outings.find(x=>String(x.id)===String(id));
+      document.getElementById('modalTitle').textContent = 'Modifier la sortie';
+      document.getElementById('f-id').value = o.id;
+      document.getElementById('f-date').value = o.date;
+      document.getElementById('f-title').value = o.title;
+      document.getElementById('f-mapsurl').value = o.mapsUrl || '';
+      document.getElementById('f-note').value = o.note || '';
+      document.getElementById('f-fullday').checked = !!o.fullDay;
+      setTypeChoice(o.type);
+      deleteBtn.style.display = 'block';
+    } else {
+      document.getElementById('modalTitle').textContent = 'Ajouter une sortie';
+      document.getElementById('f-id').value = '';
+      document.getElementById('f-date').value = presetDate || monthDateStr(YEAR, viewMonth, 1);
+      document.getElementById('f-title').value = '';
+      document.getElementById('f-mapsurl').value = '';
+      document.getElementById('f-note').value = '';
+      document.getElementById('f-fullday').checked = false;
+      setTypeChoice('plage');
+      deleteBtn.style.display = 'none';
+    }
+    overlay.classList.add('open');
+  }
+
+  function closeModal(){
+    document.getElementById('overlay').classList.remove('open');
+  }
+
+  function saveOuting(){
+    const date = document.getElementById('f-date').value;
+    const title = document.getElementById('f-title').value.trim();
+    const type = document.querySelector('input[name=ftype]:checked').value;
+    const mapsUrl = document.getElementById('f-mapsurl').value.trim();
+    const note = document.getElementById('f-note').value.trim();
+    const fullDay = document.getElementById('f-fullday').checked;
+
+    if(!date || !title){ alert('Merci de renseigner au moins une date et un titre.'); return; }
+    if(!outingsRef){ alert('Firebase n\'est pas configuré — voir les commentaires en haut du fichier.'); return; }
+
+    const idVal = document.getElementById('f-id').value;
+    const data = { date, title, type, mapsUrl, note, fullDay };
+
+    if(idVal){
+      outingsRef.child(idVal).update(data).catch(e=>{ console.error(e); setSyncStatus('error'); });
+    } else {
+      const newRef = outingsRef.push();
+      newRef.set(data).catch(e=>{ console.error(e); setSyncStatus('error'); });
+    }
+    closeModal();
+  }
+
+  function deleteOuting(){
+    const idVal = document.getElementById('f-id').value;
+    if(!outingsRef) return;
+    outingsRef.child(idVal).remove().catch(e=>{ console.error(e); setSyncStatus('error'); });
+    closeModal();
+  }
+
+  document.getElementById('overlay').addEventListener('click', e=>{
+    if(e.target.id==='overlay') closeModal();
+  });
+
+  boot();
+</script>
+
+</body>
+</html>
