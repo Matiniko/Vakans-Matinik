@@ -162,6 +162,12 @@
   }
   .icon-btn:hover{ opacity: 1; background: var(--sable-2); }
   .card.home{ background: var(--sable-2); }
+  .time-badge{
+    display:inline-flex; align-items:center; gap:3px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+    background: var(--palmier); color: var(--papier); padding: 2px 8px; border-radius: 6px;
+    margin-left: 6px; vertical-align: middle;
+  }
   .full-day-badge{
     display:inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
     background: var(--nuit); color: var(--papier); padding: 2px 7px; border-radius: 6px; margin-left: 6px; vertical-align: middle;
@@ -663,7 +669,7 @@
     const inner = `
       <div class="card-icon" style="background:${hexToRgba(meta.color,0.18)}">${meta.icon}</div>
       <div class="card-body">
-        <div class="card-date">${dateLabel(o.date)}${o.time ? ' · ' + formatTime(o.time) : ''}${badge}</div>
+        <div class="card-date">${dateLabel(o.date)}${o.time ? `<span class="time-badge">🕒 ${formatTime(o.time)}</span>` : ''}${badge}</div>
         <div class="card-title">${escapeHtml(o.title)}</div>
         ${o.note ? `<div class="card-note">${escapeHtml(o.note)}</div>` : ''}
       </div>
