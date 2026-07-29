@@ -538,6 +538,78 @@
     outingsRef.set(updates).catch(e=>console.error('Seed failed', e));
   }
 
+  /* ---------- Calendar reminder export (.ics) ---------- */
+  function icsEscape(str){
+    return String(str||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
+  }
+  function icsTimestamp(d){
+    return d.getUTCFullYear() + pad(d.getUTCMonth()+1) + pad(d.getUTCDate()) + 'T' +
+           pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z';
+  }
+  function addDaysToYmd(ymd, days){
+    const [y,m,d] = ymd.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m-1, d));
+    dt.setUTCDate(dt.getUTCDate() + days);
+    return dt.getUTCFullYear() + pad(dt.getUTCMonth()+1) + pad(dt.getUTCDate());
+  }
+
+  function downloadICS(id){
+    const o = outings.find(x=>String(x.id)===String(id));
+    if(!o) return;
+    const meta = TYPE_META[o.type] || { label:'Sortie' };
+    const ymd = o.date.replace(/-/g,'');
+    const uid = `${o.id}@vakans-matinik`;
+    const now = icsTimestamp(new Date());
+    const descParts = [];
+    if(o.note) descParts.push(o.note);
+    if(o.mapsUrl) descParts.push('Lieu : ' + o.mapsUrl);
+    const description = icsEscape(descParts.join('\n'));
+
+    let dtBlock, alarmTrigger;
+    if(o.time){
+      const [h,m] = o.time.split(':');
+      const dtStart = `${ymd}T${h}${m}00`;
+      const endHour = pad((parseInt(h,10)+1) % 24);
+      const dtEnd = `${ymd}T${endHour}${m}00`;
+      dtBlock = `DTSTART:${dtStart}\r\nDTEND:${dtEnd}`;
+      alarmTrigger = '-PT1H'; // rappel 1h avant
+    } else {
+      const endYmd = addDaysToYmd(o.date, 1);
+      dtBlock = `DTSTART;VALUE=DATE:${ymd}\r\nDTEND;VALUE=DATE:${endYmd}`;
+      alarmTrigger = '-P1D'; // rappel la veille
+    }
+
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Vakans-Matinik//FR',
+      'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTAMP:${now}`,
+      dtBlock,
+      `SUMMARY:${icsEscape(meta.icon + ' ' + o.title)}`,
+      description ? `DESCRIPTION:${description}` : '',
+      'BEGIN:VALARM',
+      `TRIGGER:${alarmTrigger}`,
+      'ACTION:DISPLAY',
+      `DESCRIPTION:${icsEscape('Rappel : ' + o.title)}`,
+      'END:VALARM',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].filter(Boolean).join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${o.title.replace(/[^a-z0-9]+/gi,'-')}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   /* ---------- Helpers ---------- */
   function dateLabel(dateStr){
     const d = new Date(dateStr + 'T12:00:00');
@@ -675,6 +747,7 @@
         ${o.note ? `<div class="card-note">${escapeHtml(o.note)}</div>` : ''}
       </div>
       <div class="card-actions">
+        <button class="icon-btn" title="Ajouter un rappel à mon calendrier" onclick="event.stopPropagation(); downloadICS('${o.id}')">🔔</button>
         <button class="icon-btn" title="Modifier" onclick="event.stopPropagation(); openModal('${o.id}')">✎</button>
         ${o.mapsUrl ? `<button class="icon-btn" title="Ouvrir dans Maps" onclick="event.stopPropagation(); window.open('${o.mapsUrl}','_blank')">↗</button>` : ''}
       </div>`;
