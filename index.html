@@ -114,20 +114,17 @@
     aspect-ratio: 1/1; border-radius: 10px; background: var(--papier);
     border: 1px solid rgba(15,59,71,0.08);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap: 3px; font-size: 12.5px; font-weight: 600; color: var(--encre);
-    position: relative;
+    gap: 2px; font-size: 12.5px; font-weight: 600; color: var(--encre);
+    position: relative; padding: 2px;
   }
   .cal-cell.empty{ background: transparent; border-color: transparent; }
   .cal-cell.has-outing{ cursor:pointer; border-color: rgba(15,59,71,0.18); }
   .cal-cell.has-outing:hover{ box-shadow: 0 4px 12px rgba(22,48,47,0.12); transform: translateY(-1px); }
   .cal-cell.no-outing{ cursor:pointer; color:#9aa9a5; }
   .cal-cell.no-outing:hover{ background: var(--sable-2); }
-  .cal-dots{ display:flex; gap:2px; }
-  .cal-dot{ width:5px; height:5px; border-radius:50%; }
-  .dot-plage{ background:#3aa0a0; }
-  .dot-foret{ background: var(--palmier); }
-  .dot-resto{ background: var(--hibiscus); }
-  .dot-maison{ background: var(--soleil); }
+  .cal-daynum{ font-size: 10.5px; font-weight: 700; opacity: 0.6; line-height:1; }
+  .cal-icons{ font-size: 15px; line-height:1; display:flex; gap:1px; align-items:center; justify-content:center; }
+  .cal-extra{ font-size: 8.5px; font-weight:700; color:var(--nuit); opacity:0.65; margin-left:1px; }
 
   .week{ padding: 0 20px; }
   .week-head{ display:flex; align-items: baseline; justify-content: space-between; padding: 26px 4px 12px; }
@@ -696,12 +693,11 @@
       const dayOutings = outings.filter(o=>o.date===dateStr);
       const hasOutings = dayOutings.length>0;
       const types = [...new Set(dayOutings.map(o=>o.type))];
-      const dots = types.map(t=>{
-        const meta = TYPE_META[t] || { color:'#999999' };
-        return `<span class="cal-dot" style="background:${meta.color}"></span>`;
-      }).join('');
+      const shown = types.slice(0,2).map(t=>(TYPE_META[t] || {icon:'📍'}).icon);
+      const extra = types.length>2 ? `<span class="cal-extra">+${types.length-2}</span>` : '';
       html += `<div class="cal-cell ${hasOutings?'has-outing':'no-outing'}" onclick="onDayClick('${dateStr}')">
-                 <span>${day}</span><div class="cal-dots">${dots}</div>
+                 <span class="cal-daynum">${day}</span>
+                 <div class="cal-icons">${shown.join('')}${extra}</div>
                </div>`;
     }
     for(let i=0;i<trailing;i++) html += `<div class="cal-cell empty"></div>`;
