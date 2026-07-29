@@ -538,7 +538,43 @@
     outingsRef.set(updates).catch(e=>console.error('Seed failed', e));
   }
 
-  /* ---------- Calendar reminder export (.ics) ---------- */
+  /* ---------- Calendar reminder: open directly in Google Calendar ---------- */
+  function openGoogleCalendar(id){
+    const o = outings.find(x=>String(x.id)===String(id));
+    if(!o) return;
+    const meta = TYPE_META[o.type] || { icon:'' };
+    const [y, mo, d] = o.date.split('-').map(Number);
+    let datesParam;
+
+    if(o.time){
+      const [hh, mm] = o.time.split(':').map(Number);
+      // Martinique = UTC-4 (pas de changement d'heure) -> UTC = heure locale + 4h
+      const startUTC = new Date(Date.UTC(y, mo-1, d, hh+4, mm));
+      const endUTC = new Date(startUTC.getTime() + 60*60*1000); // durée par défaut : 1h
+      const fmt = dt => dt.getUTCFullYear() + pad(dt.getUTCMonth()+1) + pad(dt.getUTCDate()) + 'T' +
+                         pad(dt.getUTCHours()) + pad(dt.getUTCMinutes()) + '00Z';
+      datesParam = `${fmt(startUTC)}/${fmt(endUTC)}`;
+    } else {
+      const ymd = o.date.replace(/-/g,'');
+      const endYmd = addDaysToYmd(o.date, 1);
+      datesParam = `${ymd}/${endYmd}`;
+    }
+
+    const detailsParts = [];
+    if(o.note) detailsParts.push(o.note);
+    if(o.mapsUrl) detailsParts.push('Lieu : ' + o.mapsUrl);
+
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: (meta.icon ? meta.icon + ' ' : '') + o.title,
+      dates: datesParam,
+      details: detailsParts.join('\n'),
+      location: o.mapsUrl || ''
+    });
+    window.open('https://calendar.google.com/calendar/render?' + params.toString(), '_blank');
+  }
+
+  /* ---------- Calendar reminder export (.ics) — alternative pour Apple/Outlook ---------- */
   function icsEscape(str){
     return String(str||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
   }
@@ -747,7 +783,8 @@
         ${o.note ? `<div class="card-note">${escapeHtml(o.note)}</div>` : ''}
       </div>
       <div class="card-actions">
-        <button class="icon-btn" title="Ajouter un rappel à mon calendrier" onclick="event.stopPropagation(); downloadICS('${o.id}')">🔔</button>
+        <button class="icon-btn" title="Ajouter à Google Calendar" onclick="event.stopPropagation(); openGoogleCalendar('${o.id}')">🔔</button>
+        <button class="icon-btn" title="Ajouter au calendrier (Apple / Outlook)" onclick="event.stopPropagation(); downloadICS('${o.id}')">📅</button>
         <button class="icon-btn" title="Modifier" onclick="event.stopPropagation(); openModal('${o.id}')">✎</button>
         ${o.mapsUrl ? `<button class="icon-btn" title="Ouvrir dans Maps" onclick="event.stopPropagation(); window.open('${o.mapsUrl}','_blank')">↗</button>` : ''}
       </div>`;
